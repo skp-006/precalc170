@@ -125,6 +125,17 @@ const qEval=(nm,a,b,c,x)=>{const t=[[a,P(x)+"²"]],v=[[a*x*x,""]];if(b){t.push([
 const dI=a=>String(a).replace(/inf/g,"∞").replace(/-/g,"−").replace(/U/g," ∪ ").replace(/,/g,", ");
 const undo=a=>a<0?`subtract ${-a} from both sides`:a>0?`add ${a} to both sides`:`nothing to undo`;
 // Builds the numbered list: (1) restate, (2) rule, (3) each work line, (4) final answer, (5) quick check
+
+function fmtStep(s){
+  const m=s.match(/^(<b>[^<]*<\/b>\s*)?([\s\S]*)$/);const lab=m[1]||"",body=m[2];
+  const plain=body.replace(/<[^>]*>/g,"").replace(/&[a-z#0-9]+;/gi,"");
+  if(/[A-Za-z]{3,}/.test(plain.replace(/\b(sqrt|inf)\b/g,"")))return s;
+  const ind="<span style='display:inline-block;width:1.4em'></span>";
+  let parts=body.split(/\s*⟹\s*|;\s+|,\s+(?=so\s)/);parts=parts.flatMap(p=>{const z=p.split(/,\s+/);return z.length>1&&z.every(t=>t.split(/\s+=\s+/).length>=3)?z:[p]});const lines=[];
+  parts.forEach(p=>{const q=p.split(/\s+=\s+/);if(q.length>=3&&!/\bor\b|\band\b|,/.test(p)){lines.push(q[0]);for(let i=1;i<q.length;i++)lines.push(ind+"= "+q[i])}else lines.push(p)});
+  if(lines.length<2)return s;
+  return lab+lines.join("<br>");
+}
 const sol=(ask,rule,work,ans,chk)=>[`<b>Rule / idea:</b> ${rule}`,...work,`<b>Final answer:</b> ${ans}`,...(chk?[`<b>Quick check:</b> ${chk}`]:[])];
 // Multiple choice builder: correct + distractors (deduped). why = array parallel to distractors, or {choice: reason}.
 function mc(q,correct,distractors,steps,why,mistake){const ch=[correct],rs={};
@@ -1509,7 +1520,7 @@ function unmarkMastered(st,id){const ix=SECTIONS.findIndex(s=>s.id===id);if(ix<0
 function pickNewer(local,remote){const lv=local&&validState(local),rv=remote&&validState(remote);
   if(!rv)return {state:local,source:"local"};if(!lv)return {state:remote,source:"remote"};
   const lt=+local.updatedAt||0,rt=+remote.updatedAt||0;return rt>lt?{state:remote,source:"remote"}:{state:local,source:"local"}}
-if(typeof module!=="undefined")module.exports={markMastered,unmarkMastered,pickNewer,SECTIONS,check,parseNum,intEq,parseIntervals,encodeProgress,decodeProgress};
+if(typeof module!=="undefined")module.exports={fmtStep,markMastered,unmarkMastered,pickNewer,SECTIONS,check,parseNum,intEq,parseIntervals,encodeProgress,decodeProgress};
 
 const KEY="precalc170_ch1_v1";
 let S=JSON.parse(localStorage.getItem(KEY)||"null")||{hist:{},mastered:{},cur:"1.1",count:0};
@@ -1555,7 +1566,7 @@ function submit(i){if(answered)return;const ans=curQ.type==="mc"?i:$("ans").valu
  const wrongBlock=ok?"":`<div class="yours">Your answer: <b>${curQ.type==="mc"?mine:esc(mine)}</b></div>${myWhy?`<div class="mist">❌ <b>Why your choice is wrong:</b><br>${myWhy.r.replace(/^Wrong — /,"")}</div>`:""}${curQ.mistake?`<div class="mist">⚠️ <b>Common mistake:</b><br>${curQ.mistake}</div>`:""}`;
  const okMistake=ok&&curQ.mistake?`<details class="mistd"><summary>⚠️ Common mistake to avoid</summary>${curQ.mistake}</details>`:"";
  const whyAll=curQ.type==="mc"&&why.length?`<div class="whyall"><b>Why the other choices are wrong</b><ul>${why.map(w=>`<li><b>${w.c}</b><br>${w.r.replace(/^Wrong — /,"")}</li>`).join("")}</ul></div>`:"";
- $("fb").innerHTML=`<div class="${ok?"okb":"nob"}">${ok?"✅ Correct!":"❌ Not quite. Correct answer: <b>"+right+"</b>"}</div>${wrongBlock}<div class="steps"><b>Worked solution</b><ol>${curQ.steps.map(s=>"<li>"+s+"</li>").join("")}</ol></div>${okMistake}${whyAll}${msg}<button class="go" onclick="${msg&&SECTIONS.findIndex(s=>s.id===S.cur)<SECTIONS.length-1?`go(SECTIONS[SECTIONS.findIndex(s=>s.id===S.cur)+1].id)`:"next()"}">Next →</button>`;
+ $("fb").innerHTML=`<div class="${ok?"okb":"nob"}">${ok?"✅ Correct!":"❌ Not quite. Correct answer: <b>"+right+"</b>"}</div>${wrongBlock}<div class="steps"><b>Worked solution</b><ol>${curQ.steps.map(s=>"<li>"+fmtStep(s)+"</li>").join("")}</ol></div>${okMistake}${whyAll}${msg}<button class="go" onclick="${msg&&SECTIONS.findIndex(s=>s.id===S.cur)<SECTIONS.length-1?`go(SECTIONS[SECTIONS.findIndex(s=>s.id===S.cur)+1].id)`:"next()"}">Next →</button>`;
  save();renderMap();if(window.MathJax&&MathJax.typesetPromise)MathJax.typesetPromise().catch(()=>{})}
 function resetAll(){if(confirm("Reset all progress?")){localStorage.removeItem(KEY);S={hist:{},mastered:{},cur:"1.1",count:0};go("1.1")}}
 go(S.cur);
